@@ -1,0 +1,10 @@
+Data 0
+Data 12
+Data 9
+Data 18
+Data 12
+LDX 2,7
+LDR 3,0,10
+LDR 2,2,10
+LDR 1,2,10,1
+LDA 0,0,0
