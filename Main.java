@@ -1,9 +1,13 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.io.BufferedWriter;
+
 
 public class Main {
     private static Map<Integer, Integer> memory = new HashMap<>(); // 模拟内存
@@ -11,11 +15,19 @@ public class Main {
     private static int []register_general=new int[4];
     private static int []register_index=new int[4];
     private static int []data=new int[100000];
+    private static List<String> output=new ArrayList<>();
+    private static final Map<String, String> opcodes = new HashMap<>() {{
+        put("LDX", "101001");
+        put("LDR", "000001");
+        put("LDA", "000011");
+        put("JZ",  "001010");
+    }};
     public static void main(String[] args) {
+        String inputFile = "input.asm"; // 汇编源文件
         String outputFile = "output.txt"; // 输出文件
 
         // 处理汇编文件
-        try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
+        try (BufferedReader br = new BufferedReader(new FileReader(inputFile))) {
             String line;
             while ((line = br.readLine()) != null) {
                 processLine(line);
@@ -24,11 +36,19 @@ public class Main {
             e.printStackTrace();
         }
 
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+            for(String s:output) {
+                writer.write(s);
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     private static void processLine(String line) {
-        line = line.trim();         // needs to trim with one or more white spaces
-        //System.out.println(line);
+        line = line.trim();
         String[] parts = line.split(" ");
         if (line.startsWith("LDX")){
             String[] registersAndAddress = parts[1].split(",");
@@ -56,28 +76,32 @@ public class Main {
             boolean hasIndex = registersAndAddress.length > 2 && registersAndAddress[2].equals("1");
             int I = hasIndex ? 1 : 0;
             encodeInstruction("LDA", r, x, address, I);
+        }else if(line.startsWith("JZ")){
+            String[] registersAndAddress = parts[1].split(",");
+            int r = Integer.parseInt(registersAndAddress[0]);
+            int x = Integer.parseInt(registersAndAddress[1]);
+            int address = Integer.parseInt(registersAndAddress[2]);
+            encodeInstruction("JZ", r, x, address,0);
         }
 
     }
 
     private static String encodeInstruction(String instruction, int r, int x, int address, int I) {
-        String opcode="";
-        if(instruction.equals("LDX"))opcode="101001";
-        else if(instruction.equals("Data")){}
-        else if(instruction.equals("LDR")){opcode="000001";}
-        else if(instruction.equals("LDA")){opcode="000011";}
+        String opcode = opcodes.getOrDefault(instruction, "000000");
         String rBits = String.format("%2s", Integer.toBinaryString(r)).replace(' ', '0'); // 寄存器r的二进制表示
         String ixBits = String.format("%2s", Integer.toBinaryString(x)).replace(' ', '0'); // 索引寄存器的二进制表示
         String IBit = Integer.toBinaryString(I); // 索引使能位
         String addressBits = String.format("%5s", Integer.toBinaryString(address)).replace(' ', '0'); // 地址的二进制表示
 
         String binaryInstruction = opcode + rBits + ixBits + IBit + addressBits;
-//        System.out.println("Binary Instruction: " + binaryInstruction);
+
         int decimalValue = Integer.parseInt(binaryInstruction, 2);
-        String octalValue = Integer.toOctalString(decimalValue);
         String formattedOctal = String.format("%06o", decimalValue);
+        //        System.out.println("Binary Instruction: " + binaryInstruction);
 //        System.out.println("Encoded Instruction: "+ formattedOctal);
-        System.out.println(formattedOctal);
+        String loc = String.format("%06o", currentLocation++);
+        System.out.println(loc+" "+formattedOctal);
+        output.add(loc+" "+formattedOctal);
         return formattedOctal;
     }
 }
