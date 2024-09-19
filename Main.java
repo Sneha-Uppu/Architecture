@@ -10,8 +10,10 @@ import java.io.BufferedWriter;
 
 
 public class Main {
+    private static Map<String, Integer> labelTable = new HashMap<>();
+    private static List<String> lines = new ArrayList<>();
     private static Map<Integer, Integer> memory = new HashMap<>(); // 模拟内存
-    private static int currentLocation = 0; // 当前指令位置
+    private static int currentLocation; // 当前指令位置
     private static int cc=0;
     private static int []register_general=new int[4];
     private static int []register_index=new int[4];
@@ -40,16 +42,8 @@ public class Main {
     public static void main(String[] args) {
         String inputFile = "input.asm"; // 汇编源文件
         String outputFile = "output.txt"; // 输出文件
-
-        // 处理汇编文件
-        try (BufferedReader br = new BufferedReader(new FileReader(inputFile))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                processLine(line);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        firstPass(inputFile);
+        secondPass();
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
             for(String s:output) {
@@ -61,19 +55,54 @@ public class Main {
         }
 
     }
+    public static void firstPass(String inputFile) {
+        currentLocation = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(inputFile))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.contains(":")) {
+                    String[] parts = line.split(":", 2);
+                    String label = parts[0].trim();
+                    line = parts[1].trim();
+                    // 将标签和对应的行号存入符号表
+                    labelTable.put(label, currentLocation);
+                }
+                lines.add(line.trim());
+                currentLocation++;
+                if(line.startsWith("LOC")){
+                    String[] parts = line.split("\\s+");
+                    int address = Integer.parseInt(parts[1]);
+                    currentLocation=address;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public static void secondPass() {
+        currentLocation=0;
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i).trim(); // 从 List 中获取行
+            processLine(line);
+        }
+    }
 
     private static void processLine(String line) {
         line = line.trim();
-        String[] parts = line.split(" ");
+        String[] parts = line.split("\\s+");
         if(line.startsWith("HLT")){
             encodeInstruction(parts[0], 0, 0, 0, 0);
         }else if(line.startsWith("LOC")){
             int address = Integer.parseInt(parts[1]);
             currentLocation=address;
         }else if(line.startsWith("Data")){
-            int address = Integer.parseInt(parts[1]);
-            data[currentLocation]=address;
-            encodeInstruction(parts[0],0,0,address,0);
+            String data_label=parts[1];
+            int dat;
+            if (labelTable.containsKey(data_label))
+                dat = labelTable.get(data_label);
+            else dat = Integer.parseInt(data_label);
+            data[currentLocation]=dat;
+            encodeInstruction(parts[0],0,0,dat,0);
         }else if(line.startsWith("LDR")){
             r_x_addI_update(parts[1]);
             register_general[r]=data[ea];
@@ -89,34 +118,46 @@ public class Main {
         }else if (line.startsWith("LDX")){
             x_addI_update(parts[1]);
             register_index[x]=data[ea];
-            encodeInstruction(parts[0],r,x,address,0);
+            encodeInstruction(parts[0],r,x,address,I);
         }else if (line.startsWith("STX")){
             x_addI_update(parts[1]);
             register_index[x]=data[ea];
-            encodeInstruction(parts[0],r,x,address,0);
+            encodeInstruction(parts[0],r,x,address,I);
         }else if(line.startsWith("JZ")){
             r_x_addI_update(parts[1]);
-            encodeInstruction(parts[0], r, x, address,0);
+            encodeInstruction(parts[0], r, x, address,I);
             if(register_general[r]==0) currentLocation=ea;
         }else if(line.startsWith("JNE")){
             r_x_addI_update(parts[1]);
-            encodeInstruction(parts[0], r, x, address,0);
+            encodeInstruction(parts[0], r, x, address,I);
             if(register_general[r]!=0) currentLocation=ea;
         }else if(line.startsWith("JCC")){
             r_x_addI_update(parts[1]);
-            encodeInstruction(parts[0], r, x, address,0);
+            encodeInstruction(parts[0], r, x, address,I);
             if(cc==r) currentLocation=ea;
         }else if(line.startsWith("JMA")){
             x_addI_update(parts[1]);
-            encodeInstruction(parts[0], r, x, address,0);
+            encodeInstruction(parts[0], r, x, address,I);
             currentLocation=ea;
         }else if(line.startsWith("JSR")){
             x_addI_update(parts[1]);
-            encodeInstruction(parts[0], r, x, address,0);
+            encodeInstruction(parts[0], r, x, address,I);
             register_general[3]=currentLocation;
             currentLocation=ea;
         }else if(line.startsWith("RFS")){
-
+            address= parts.length==2?Integer.parseInt(parts[1]):0;
+            encodeInstruction(parts[0], 0, 0, address,0);
+            currentLocation=register_general[3];
+            register_general[0]=address;
+        }else if(line.startsWith("SOB")){
+            r_x_addI_update(parts[1]);
+            encodeInstruction(parts[0], r, x, address,I);
+            register_general[r]=register_general[r]-1;
+            if(register_general[r]>0) currentLocation=ea;
+        }else if(line.startsWith("JGE")){
+            r_x_addI_update(parts[1]);
+            encodeInstruction(parts[0], r, x, address,I);
+            if(register_general[r]>=0) currentLocation=ea;
         }
 
 
