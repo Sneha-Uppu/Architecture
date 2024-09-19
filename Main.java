@@ -21,6 +21,11 @@ public class Main {
         put("LDR", "000001");
         put("LDA", "000011");
         put("JZ",  "001010");
+
+
+        put("SRC",  "011111");
+        put("JZ",  "100000");
+
     }};
     public static void main(String[] args) {
         String inputFile = "input.asm"; // 汇编源文件
@@ -82,6 +87,7 @@ public class Main {
             int x = Integer.parseInt(registersAndAddress[1]);
             int address = Integer.parseInt(registersAndAddress[2]);
             encodeInstruction("JZ", r, x, address,0);
+            if(register_general[r]==0) currentLocation=address;
         }
 
     }
@@ -99,6 +105,22 @@ public class Main {
         String formattedOctal = String.format("%06o", decimalValue);
         //        System.out.println("Binary Instruction: " + binaryInstruction);
 //        System.out.println("Encoded Instruction: "+ formattedOctal);
+        String loc = String.format("%06o", currentLocation++);
+        System.out.println(loc+" "+formattedOctal);
+        output.add(loc+" "+formattedOctal);
+        return formattedOctal;
+    }
+    private static String encode_Shift_Rotate(String instruction, int r, int count, int LR, int AL) {
+        String opcode = opcodes.getOrDefault(instruction, "000000");
+        String rBits = String.format("%2s", Integer.toBinaryString(r)).replace(' ', '0'); // 寄存器r的二进制表示
+        String alBits = String.valueOf(AL);
+        String lrBits = String.valueOf(LR);
+        String countBits = String.format("%6s", Integer.toBinaryString(count)).replace(' ', '0');
+
+        String binaryInstruction = opcode + rBits + alBits + lrBits + countBits;
+
+        int decimalValue = Integer.parseInt(binaryInstruction, 2);
+        String formattedOctal = String.format("%06o", decimalValue);
         String loc = String.format("%06o", currentLocation++);
         System.out.println(loc+" "+formattedOctal);
         output.add(loc+" "+formattedOctal);
