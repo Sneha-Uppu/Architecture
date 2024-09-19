@@ -1,3 +1,7 @@
+LOC 6
+Data 10
+Data 3
+Data 1024
 Data 0
 Data 12
 Data 9
@@ -7,4 +11,8 @@ LDX 2,7
 LDR 3,0,10
 LDR 2,2,10
 LDR 1,2,10,1
-LDA 0,0,0
+LDA 3,0,0
+LDX 1,8
+JZ 0,1,0
+
+HLT
