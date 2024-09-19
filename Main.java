@@ -11,20 +11,30 @@ import java.io.BufferedWriter;
 
 public class Main {
     private static Map<Integer, Integer> memory = new HashMap<>(); // 模拟内存
-    private static int currentLocation = 6; // 当前指令位置
+    private static int currentLocation = 0; // 当前指令位置
+    private static int cc=0;
     private static int []register_general=new int[4];
     private static int []register_index=new int[4];
     private static int []data=new int[100000];
     private static List<String> output=new ArrayList<>();
+    private static int r,x,address,I,ea;
     private static final Map<String, String> opcodes = new HashMap<>() {{
-        put("LDX", "101001");
+        put("HLT", "000000");
         put("LDR", "000001");
+        put("STR", "000010");
         put("LDA", "000011");
+        put("LDX", "101001");
+        put("STX", "101010");
         put("JZ",  "001010");
-
+        put("JNE",  "001011");
+        put("JCC",  "001100");
+        put("JMA",  "001101");
+        put("JSR",  "001110");
+        put("RFS",  "001111");
+        put("SOB",  "010000");
+        put("JGE",  "010001");
 
         put("SRC",  "011111");
-        put("JZ",  "100000");
 
     }};
     public static void main(String[] args) {
@@ -55,42 +65,86 @@ public class Main {
     private static void processLine(String line) {
         line = line.trim();
         String[] parts = line.split(" ");
-        if (line.startsWith("LDX")){
-            String[] registersAndAddress = parts[1].split(",");
-            int x = Integer.parseInt(registersAndAddress[0]);
-            int address = Integer.parseInt(registersAndAddress[1]);
-            register_index[x]=data[address];
-            encodeInstruction("LDX",0,x,address,0);
+        if(line.startsWith("HLT")){
+            encodeInstruction(parts[0], 0, 0, 0, 0);
+        }else if(line.startsWith("LOC")){
+            int address = Integer.parseInt(parts[1]);
+            currentLocation=address;
         }else if(line.startsWith("Data")){
             int address = Integer.parseInt(parts[1]);
             data[currentLocation]=address;
-            encodeInstruction("Data",0,0,address,0);
+            encodeInstruction(parts[0],0,0,address,0);
         }else if(line.startsWith("LDR")){
-            String[] registersAndAddress = parts[1].split(",");
-            int r = Integer.parseInt(registersAndAddress[0]);
-            int x = Integer.parseInt(registersAndAddress[1]);
-            int address = Integer.parseInt(registersAndAddress[2]);
-            boolean hasIndex = registersAndAddress.length > 2 && registersAndAddress[2].equals("1");
-            int I = hasIndex ? 1 : 0;
-            encodeInstruction("LDR", r, x, address, I);
+            r_x_addI_update(parts[1]);
+            register_general[r]=data[ea];
+            encodeInstruction(parts[0], r, x, address, I);
+        }else if(line.startsWith("STR")){
+            r_x_addI_update(parts[1]);
+            data[ea]=register_general[r];
+            encodeInstruction(parts[0], r, x, address, I);
         }else if(line.startsWith("LDA")){
-            String[] registersAndAddress = parts[1].split(",");
-            int r = Integer.parseInt(registersAndAddress[0]);
-            int x = Integer.parseInt(registersAndAddress[1]);
-            int address = Integer.parseInt(registersAndAddress[2]);
-            boolean hasIndex = registersAndAddress.length > 2 && registersAndAddress[2].equals("1");
-            int I = hasIndex ? 1 : 0;
-            encodeInstruction("LDA", r, x, address, I);
+            r_x_addI_update(parts[1]);
+            register_general[r]=ea;
+            encodeInstruction(parts[0], r, x, address, I);
+        }else if (line.startsWith("LDX")){
+            x_addI_update(parts[1]);
+            register_index[x]=data[ea];
+            encodeInstruction(parts[0],r,x,address,0);
+        }else if (line.startsWith("STX")){
+            x_addI_update(parts[1]);
+            register_index[x]=data[ea];
+            encodeInstruction(parts[0],r,x,address,0);
         }else if(line.startsWith("JZ")){
-            String[] registersAndAddress = parts[1].split(",");
-            int r = Integer.parseInt(registersAndAddress[0]);
-            int x = Integer.parseInt(registersAndAddress[1]);
-            int address = Integer.parseInt(registersAndAddress[2]);
-            encodeInstruction("JZ", r, x, address,0);
-            if(register_general[r]==0) currentLocation=address;
+            r_x_addI_update(parts[1]);
+            encodeInstruction(parts[0], r, x, address,0);
+            if(register_general[r]==0) currentLocation=ea;
+        }else if(line.startsWith("JNE")){
+            r_x_addI_update(parts[1]);
+            encodeInstruction(parts[0], r, x, address,0);
+            if(register_general[r]!=0) currentLocation=ea;
+        }else if(line.startsWith("JCC")){
+            r_x_addI_update(parts[1]);
+            encodeInstruction(parts[0], r, x, address,0);
+            if(cc==r) currentLocation=ea;
+        }else if(line.startsWith("JMA")){
+            x_addI_update(parts[1]);
+            encodeInstruction(parts[0], r, x, address,0);
+            currentLocation=ea;
+        }else if(line.startsWith("JSR")){
+            x_addI_update(parts[1]);
+            encodeInstruction(parts[0], r, x, address,0);
+            register_general[3]=currentLocation;
+            currentLocation=ea;
+        }else if(line.startsWith("RFS")){
+
         }
 
+
+
     }
+    public static void r_x_addI_update(String part){
+        String[] registersAndAddress = part.split(",");
+        r = Integer.parseInt(registersAndAddress[0]);
+        x = Integer.parseInt(registersAndAddress[1]);
+        address = Integer.parseInt(registersAndAddress[2]);
+        boolean hasIndex = registersAndAddress.length > 3 && registersAndAddress[3].equals("1");
+        I = hasIndex ? 1 : 0;
+        ea=effective_Address(x,address,I);
+    }
+    public static void x_addI_update(String part){
+        String[] registersAndAddress = part.split(",");
+        r=0;
+        x = Integer.parseInt(registersAndAddress[0]);
+        address = Integer.parseInt(registersAndAddress[1]);
+        boolean hasIndex = registersAndAddress.length > 2 && registersAndAddress[2].equals("1");
+        I = hasIndex ? 1 : 0;
+        ea=effective_Address(x,address,I);
+    }
+    public static int effective_Address(int x,int address,int i){
+        if(i==0)return register_index[x]+address;
+        else return data[register_index[x]+address];
+    }
+
 
     private static String encodeInstruction(String instruction, int r, int x, int address, int I) {
         String opcode = opcodes.getOrDefault(instruction, "000000");
@@ -112,11 +166,13 @@ public class Main {
     }
     private static String encode_Shift_Rotate(String instruction, int r, int count, int LR, int AL) {
         String opcode = opcodes.getOrDefault(instruction, "000000");
+        if (opcode.equals("000000")) {
+            throw new IllegalArgumentException("Invalid instruction: " + instruction);
+        }
         String rBits = String.format("%2s", Integer.toBinaryString(r)).replace(' ', '0'); // 寄存器r的二进制表示
         String alBits = String.valueOf(AL);
         String lrBits = String.valueOf(LR);
         String countBits = String.format("%6s", Integer.toBinaryString(count)).replace(' ', '0');
-
         String binaryInstruction = opcode + rBits + alBits + lrBits + countBits;
 
         int decimalValue = Integer.parseInt(binaryInstruction, 2);
