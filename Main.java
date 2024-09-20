@@ -20,6 +20,7 @@ public class Main {
     private static int []data=new int[100000];
     private static List<String> output=new ArrayList<>();
     private static int r,x,address,I,ea;
+    private static int count,LR,AL;
     private static final Map<String, String> opcodes = new HashMap<>() {{
         put("HLT", "000000");
         put("LDR", "000001");
@@ -36,7 +37,12 @@ public class Main {
         put("SOB",  "010000");
         put("JGE",  "010001");
 
-        put("SRC",  "011111");
+	put("TRR", "100111");
+        put("AND", "110000");
+        put("ORR", "110001"); 
+        put("NOT", "110010");
+        put("SRC", "011111");
+        put("RRC", "011100");
 
     }};
     public static void main(String[] args) {
@@ -158,8 +164,34 @@ public class Main {
             r_x_addI_update(parts[1]);
             encodeInstruction(parts[0], r, x, address,I);
             if(register_general[r]>=0) currentLocation=ea;
+        }else if(line.startsWith("TRR")){
+	    r_xy_addI_update(parts[1]);
+	    if (register_general[r] == register_general[x]) {
+               cc = 1; // Set condition code if equal
+            } else {
+               cc = 0;
+        }
+            encodeInstruction(parts[0], r, x, 0, 0);
+        }else if (line.startsWith("AND")) {
+            r_xy_addI_update(parts[1]);
+            register_general[r] = register_general[r] & register_general[x];
+            encodeInstruction(parts[0], r, x, 0, 0);
+        }else if (line.startsWith("ORR")) {
+            r_xy_addI_update(parts[1]);
+            register_general[r] = register_general[r] | register_general[x];
+            encodeInstruction(parts[0], r, x, 0, 0);
+        }else if (line.startsWith("NOT")) { 
+            r_x_addI_update(parts[1]);
+            encodeInstruction("NOT", r, 0, 0, 0); 
+        }else if(line.startsWith("SRC")){
+	    LR_AL_update(parts[1]);
+	    encode_Shift_Rotate("SRC", r, count, LR, AL);
+        }else if(line.startsWith("RRC")){
+	    LR_AL_update(parts[1]);
+	    encode_Shift_Rotate("SRC", r, count, LR, AL);
         }
 
+	             
 
 
     }
@@ -181,9 +213,26 @@ public class Main {
         I = hasIndex ? 1 : 0;
         ea=effective_Address(x,address,I);
     }
+    public static void r_xy_addI_update(String part){
+       String[] registers = part.split(",");
+       int r = Integer.parseInt(registers[0]);
+       int x = Integer.parseInt(registers[1]);
+    }
+	
+    
     public static int effective_Address(int x,int address,int i){
         if(i==0)return register_index[x]+address;
         else return data[register_index[x]+address];
+    }
+   
+    public static void LR_AL_update(String part){
+	String[] registersAndAddress = part.split(",");
+        int r = Integer.parseInt(registersAndAddress[0]);
+        int x = Integer.parseInt(registersAndAddress[1]);
+
+	int shiftCount = Integer.parseInt(registersAndAddress[2]);
+        int LR = Integer.parseInt(registersAndAddress[3]);
+        int AL = Integer.parseInt(registersAndAddress[4]);
     }
 
 
@@ -193,6 +242,12 @@ public class Main {
         String ixBits = String.format("%2s", Integer.toBinaryString(x)).replace(' ', '0'); // 索引寄存器的二进制表示
         String IBit = Integer.toBinaryString(I); // 索引使能位
         String addressBits = String.format("%5s", Integer.toBinaryString(address)).replace(' ', '0'); // 地址的二进制表示
+
+	if (instruction.equals("NOT")) {
+            ixBits = "00";
+            IBit = "0";
+            addressBits = "00000";
+        }
 
         String binaryInstruction = opcode + rBits + ixBits + IBit + addressBits;
 
